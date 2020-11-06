@@ -1,8 +1,52 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
+set -e
+set -o pipefail
 
-# shellcheck source=../lib/utils.bash
-source "$(dirname "$0")/../lib/utils.bash"
+install_flux() {
+  local install_type version install_path platform bin_install_path binary_path download_url
 
-install_version "$ASDF_INSTALL_TYPE" "$ASDF_INSTALL_VERSION" "$ASDF_INSTALL_PATH"
+  # shellcheck disable=SC2034
+  install_type="$1"
+  version="$2"
+  install_path="$3"
+  platform="$(uname | tr '[:upper:]' '[:lower:]')_amd64"
+  bin_install_path="$install_path/bin"
+  binary_path="$bin_install_path/flux"
+  download_url="$(get_download_url "$version" "$platform")"
+
+  echo "Creating bin directory"
+  mkdir -p "${bin_install_path}"
+
+  # older releases of flux do not use gzipped assets
+  download "${download_url}.tar.gz" "${binary_path}" || download "${download_url}" "${binary_path}"
+  chmod +x "${binary_path}"
+}
+
+download() {
+  local url output
+
+  url="$1"
+  output="$2"
+
+  echo "Downloading flux from ${url} to ${output}"
+  curl -fL "${url}" -o "${output}"
+}
+
+get_filename() {
+  local platform version
+  platform="$1"
+  version="$2"
+  echo "flux_${version}_${platform}"
+}
+
+get_download_url() {
+  local version platform filename
+
+  version="$1"
+  platform="$2"
+  filename="$(get_filename "$platform" "$version" )"
+  echo "https://github.com/fluxcd/flux2/releases/download/v${version}/${filename}"
+}
+
+install_flux "$ASDF_INSTALL_TYPE" "$ASDF_INSTALL_VERSION" "$ASDF_INSTALL_PATH"
