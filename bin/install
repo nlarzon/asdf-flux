@@ -45,7 +45,7 @@ get_download_url() {
 
   version="$1"
   platform="$2"
-  filename="$(get_filename "$platform" "$version" )"
+  filename="$(get_filename "$platform" "$version")"
   echo "https://github.com/fluxcd/flux2/releases/download/v${version}/${filename}"
 }
 
