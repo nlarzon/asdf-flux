@@ -3,52 +3,73 @@
 set -e
 set -o pipefail
 
-install_flux() {
-  local install_type version install_path platform bin_install_path binary_path download_url
+install_tool() {
+  local version=$2
+  local install_path=$3
+  local tmp_download_dir=$4
+  local binary_name=$5
 
-  # shellcheck disable=SC2034
-  install_type="$1"
-  version="$2"
-  install_path="$3"
-  platform="$(uname | tr '[:upper:]' '[:lower:]')_amd64"
-  bin_install_path="$install_path/bin"
-  binary_path="$bin_install_path/flux"
-  download_url="$(get_download_url "$version" "$platform")"
+  local platform
+  local bin_install_path="$install_path/bin"
+  local binary_path="$bin_install_path/${binary_name}"
+  local download_url
+  local download_path
+
+  platform=$(get_platform)
+  download_url=$(get_download_url "$version" "$platform" "$binary_name")
+  download_path="$tmp_download_dir/"$(get_filename "$version" "$platform" "$binary_name")
+
+  echo "Downloading [${binary_name}] from ${download_url} to ${download_path}"
+  curl -Lo "$download_path" "$download_url"
 
   echo "Creating bin directory"
   mkdir -p "${bin_install_path}"
 
-  download "${download_url}.tar.gz" "${binary_path}.tar.gz" || download "${download_url}" "${binary_path}"
+  echo "Cleaning previous binaries"
+  rm -f "$binary_path" 2>/dev/null || true
 
   echo "Extracting archive"
-  tar -xzvf "${binary_path}.tar.gz"
-  rm -rf "${binary_path}.tar.gz"
+  tar xpf "$download_path" -C "$tmp_download_dir"
+
+  echo "Copying binary"
+  cp "$(get_binary_path_in_archive "${tmp_download_dir}" "${binary_name}" "${version}" "${platform}")" "${binary_path}"
+  chmod +x "${binary_path}"
 }
 
-download() {
-  local url output
+get_binary_path_in_archive() {
+  local archive_dir=$1
+  local binary_name=$2
+  local version=$3
+  local platform=$4
 
-  url="$1"
-  output="$2"
+  echo "${archive_dir}/$binary_name"
+}
 
-  echo "Downloading flux from ${url} to ${output}"
-  curl -fL "${url}" -o "${output}"
+get_platform() {
+  echo "$(uname)_amd64"
 }
 
 get_filename() {
-  local platform version
-  platform="$1"
-  version="$2"
-  echo "flux_${version}_${platform}"
+  local version="$1"
+  local platform="$2"
+  local binary_name="$3"
+  local version_short
+  version_short=$(echo "$version" | tr -d "v")
+
+  echo "${binary_name}_${version_short}_${platform}.tar.gz"
 }
 
-get_download_url() {
-  local version platform filename
 
-  version="$1"
-  platform="$2"
-  filename="$(get_filename "$platform" "$version")"
+get_download_url() {
+  local version="$1"
+  local platform="$2"
+  local binary_name="$3"
+  local filename
+  filename="$(get_filename "$version" "$platform" "$binary_name")"
+
   echo "https://github.com/fluxcd/flux2/releases/download/v${version}/${filename}"
 }
 
-install_flux "$ASDF_INSTALL_TYPE" "$ASDF_INSTALL_VERSION" "$ASDF_INSTALL_PATH"
+tmp_download_dir="$(mktemp -d -t 'asdf_XXXXXXXX')"
+trap 'rm -rf "${tmp_download_dir}"' EXIT
+install_tool "$ASDF_INSTALL_TYPE" "$ASDF_INSTALL_VERSION" "$ASDF_INSTALL_PATH" "$tmp_download_dir" flux
