@@ -59,7 +59,6 @@ get_filename() {
   echo "${binary_name}_${version_short}_${platform}.tar.gz"
 }
 
-
 get_download_url() {
   local version="$1"
   local platform="$2"
