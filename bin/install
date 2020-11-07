@@ -18,9 +18,11 @@ install_flux() {
   echo "Creating bin directory"
   mkdir -p "${bin_install_path}"
 
-  # older releases of flux do not use gzipped assets
-  download "${download_url}.tar.gz" "${binary_path}" || download "${download_url}" "${binary_path}"
-  chmod +x "${binary_path}"
+  download "${download_url}.tar.gz" "${binary_path}.tar.gz" || download "${download_url}" "${binary_path}"
+
+  echo "Extracting archive"
+  tar -xzvf "${binary_path}.tar.gz"
+  rm -rf "${binary_path}.tar.gz"
 }
 
 download() {
